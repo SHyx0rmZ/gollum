@@ -164,9 +164,15 @@ func (sd *SampleDecoder) Decode(s *model.Vector) error {
 }
 
 // ExtractSamples builds a slice of samples from the provided metric
+<<<<<<< HEAD
 // families. If an error occurs during sample extraction, it continues to
 // extract from the remaining metric families. The returned error is the last
 // error that has occured.
+=======
+// families. If an error occurrs during sample extraction, it continues to
+// extract from the remaining metric families. The returned error is the last
+// error that has occurred.
+>>>>>>> origin/master
 func ExtractSamples(o *DecodeOptions, fams ...*dto.MetricFamily) (model.Vector, error) {
 	var (
 		all     model.Vector

@@ -4,7 +4,7 @@ GOLLUM_TAG := $(shell git describe --always --tags --match "v*" | sed -E 's/^v([
 GOLLUM_DIRTY := $(if $(shell git status --porcelain),-dirty)
 GOLLUM_VERSION := $(join $(GOLLUM_TAG),$(GOLLUM_DIRTY))
 
-GO_ENV := GORACE="halt_on_error=0"
+GO_ENV := GORACE="halt_on_error=0" GO111MODULE="on"
 GO_FLAGS := -ldflags="-s -X 'github.com/trivago/gollum/core.versionString=$(GOLLUM_VERSION)'"
 GO_FLAGS_DEBUG := $(GO_FLAGS) -ldflags='-linkmode=internal' -gcflags='-N -l'
 
@@ -79,23 +79,13 @@ clean:
 #############################################################################################################
 # Vendor related targets
 
-Gopkg.toml:
-	@dep init
-
-Gopkg.lock: Gopkg.toml
-	@dep ensure
-
 .PHONY: vendor # Generate the vendor folder
-vendor: Gopkg.toml
-	@dep ensure
-
-.PHONY: vendor-update # Update all dependencies in the vendor folder
-vendor-update: Gopkg.lock
-	@dep ensure -update
+vendor:
+	@$(GO_ENV) go mod vendor
 
 .PHONY: vendor-clean # Removes files & directories under ./vendor that are ignored by git
 vendor-clean:
-	find vendor | git check-ignore --stdin | while read f ; do rm -vrf "$$f" ; done
+	@find vendor | git check-ignore --stdin | while read f ; do rm -vrf "$$f" ; done
 
 #############################################################################################################
 # Test related targets
@@ -133,11 +123,13 @@ lint-meta:
 	--disable=maligned \
 	--disable=gocyclo \
 	--disable=errcheck \
+	--disable=gosec \
 	--exclude="\.[cC]lose[^ ]*\(.*\) \(errcheck\)" \
 	--skip=contrib \
 	--skip=docs \
 	--skip=testing \
 	--deadline=5m \
+	--concurrency=4 \
 	 ./...
 	@echo "\033[0;32mDone\033[0;0m"
 
@@ -159,7 +151,6 @@ endif
 pipeline-tools:
 	@echo "\033[0;33mInstalling required go tools ...\033[0;0m"
 	@go get -u github.com/mattn/goveralls
-	@go get -u github.com/golang/dep/cmd/dep
 	@go get -u gopkg.in/alecthomas/gometalinter.v2
 	@gometalinter.v2 --install
 	@echo "\033[0;32mDone\033[0;0m"

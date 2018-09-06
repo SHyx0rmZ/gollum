@@ -36,7 +36,7 @@ type Message struct {
 	prevStreamID MessageStreamID
 	origStreamID MessageStreamID
 	source       MessageSource
-	timestamp    time.Time
+	timestamp    int64
 }
 
 // NewMessage creates a new message from a given data stream by copying data.
@@ -45,7 +45,7 @@ func NewMessage(source MessageSource, data []byte, metadata Metadata, streamID M
 		source:       source,
 		streamID:     streamID,
 		origStreamID: streamID,
-		timestamp:    time.Now(),
+		timestamp:    time.Now().UnixNano(),
 	}
 
 	msg.data.payload = getPayloadCopy(data)
@@ -65,7 +65,7 @@ func getPayloadCopy(data []byte) (buffer []byte) {
 
 // GetCreationTime returns the time when this message was created.
 func (msg *Message) GetCreationTime() time.Time {
-	return msg.timestamp
+	return time.Unix(0, msg.timestamp)
 }
 
 // GetStreamID returns the stream this message is currently routed to.
@@ -146,37 +146,12 @@ func (msg *Message) TryGetMetadata() Metadata {
 // StorePayload copies data into the hold data buffer. If the buffer can hold
 // data it is resized, otherwise a new buffer will be allocated.
 func (msg *Message) StorePayload(data []byte) {
-	copy(msg.ResizePayload(len(data)), data)
-}
-
-// ResizePayload changes the size of the stored buffer. The current content is
-// not guaranteed to be preserved. If content needs to be preserved use Extend.
-func (msg *Message) ResizePayload(size int) []byte {
-	switch {
-	case size == len(msg.data.payload):
-	case size <= cap(msg.data.payload):
-		msg.data.payload = msg.data.payload[:size]
-	default:
-		msg.data.payload = make([]byte, size)
+	if len(data) <= cap(msg.data.payload) {
+		msg.data.payload = msg.data.payload[:len(data)]
+		copy(msg.data.payload, data)
+	} else {
+		msg.data.payload = data
 	}
-
-	return msg.data.payload
-}
-
-// ExtendPayload changes the size of the stored buffer. The current content will
-// be preserved. If content does not need to be preserved use Resize.
-func (msg *Message) ExtendPayload(size int) []byte {
-	switch {
-	case size == len(msg.data.payload):
-	case size <= cap(msg.data.payload):
-		msg.data.payload = msg.data.payload[:size]
-	default:
-		old := msg.data.payload
-		msg.data.payload = make([]byte, size)
-		copy(msg.data.payload, old)
-	}
-
-	return msg.data.payload
 }
 
 // Clone returns a copy of this message, i.e. the payload is duplicated.
@@ -243,7 +218,7 @@ func (msg *Message) Serialize() ([]byte, error) {
 		StreamID:     proto.Uint64(uint64(msg.GetStreamID())),
 		PrevStreamID: proto.Uint64(uint64(msg.GetPrevStreamID())),
 		OrigStreamID: proto.Uint64(uint64(msg.GetOrigStreamID())),
-		Timestamp:    proto.Int64(msg.timestamp.UnixNano()),
+		Timestamp:    proto.Int64(msg.timestamp),
 		Data: &SerializedMessageData{
 			Data:     msg.data.payload,
 			Metadata: msg.data.metadata,
@@ -269,15 +244,11 @@ func DeserializeMessage(data []byte) (*Message, error) {
 		return nil, err
 	}
 
-	timestamp := serializable.GetTimestamp()
-	timestampSec := timestamp / 1e9
-	timestampNano := timestamp - timestampSec*1e9
-
 	msg := &Message{
 		streamID:     MessageStreamID(serializable.GetStreamID()),
 		prevStreamID: MessageStreamID(serializable.GetPrevStreamID()),
 		origStreamID: MessageStreamID(serializable.GetOrigStreamID()),
-		timestamp:    time.Unix(timestampSec, timestampNano),
+		timestamp:    serializable.GetTimestamp(),
 	}
 
 	if msgData := serializable.GetData(); msgData != nil {

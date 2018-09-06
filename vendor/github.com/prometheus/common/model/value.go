@@ -100,7 +100,11 @@ func (s *SamplePair) UnmarshalJSON(b []byte) error {
 }
 
 // Equal returns true if this SamplePair and o have equal Values and equal
+<<<<<<< HEAD
 // Timestamps. The sematics of Value equality is defined by SampleValue.Equal.
+=======
+// Timestamps. The semantics of Value equality is defined by SampleValue.Equal.
+>>>>>>> origin/master
 func (s *SamplePair) Equal(o *SamplePair) bool {
 	return s == o || (s.Value.Equal(o.Value) && s.Timestamp.Equal(o.Timestamp))
 }
@@ -117,7 +121,11 @@ type Sample struct {
 }
 
 // Equal compares first the metrics, then the timestamp, then the value. The
+<<<<<<< HEAD
 // sematics of value equality is defined by SampleValue.Equal.
+=======
+// semantics of value equality is defined by SampleValue.Equal.
+>>>>>>> origin/master
 func (s *Sample) Equal(o *Sample) bool {
 	if s == o {
 		return true
